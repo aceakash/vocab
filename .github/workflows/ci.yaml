@@ -12,7 +12,7 @@ on:
     inputs:
       version:
         description: 'Image version'
-        required: true
+        required: false
 #2
 env:
   REGISTRY: "registry.digitalocean.com/ace-repo"
