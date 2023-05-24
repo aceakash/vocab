@@ -8,6 +8,6 @@ class GreetKtTest {
     @Test
     fun greetTest() {
         assertEquals("Hello, Akash!", greet("Akash"))
-        assertEquals("Hello, world!", greet())
+        assertEquals("Hello!", greet())
     }
 }
