@@ -16,6 +16,6 @@
 
 ## With Docker
 
-Create a Docker image: `docker build -t vocab .`
+Create a Docker image: `docker build -t vocab-app .`
 
-Run it: `docker run -p 8080:8080 vocab`
+Run it: `docker run -p 8080:8080 vocab-app`
