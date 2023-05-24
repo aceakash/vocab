@@ -1,5 +1,6 @@
 package com.kurdekar.plugins
 
+import com.kurdekar.domain.greet
 import io.ktor.server.routing.*
 import io.ktor.server.response.*
 import io.ktor.server.application.*
@@ -7,7 +8,7 @@ import io.ktor.server.application.*
 fun Application.configureRouting() {
     routing {
         get("/") {
-            call.respondText("Hello world")
+            call.respondText(greet())
         }
     }
 }
