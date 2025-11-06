@@ -10,6 +10,7 @@ on:
 
 jobs:
   build:
+    name: Build image
     runs-on: ubuntu-latest
     outputs:
       image_sha: ${{ steps.tags.outputs.image_sha }}
@@ -33,6 +34,7 @@ jobs:
           docker push "$IMAGE_SEMVER"
 
   deploy:
+    name: Deploy to server
     needs: build
     runs-on: ubuntu-latest
     concurrency: vocab-deploy
