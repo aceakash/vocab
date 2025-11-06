@@ -1,0 +1,98 @@
+name: Deploy vocab
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "**/*.go"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login GHCR
+        run: echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Set tags
+        run: |
+          echo "IMAGE_SHA=ghcr.io/aceakash/vocab:${{ github.sha }}" >> $GITHUB_ENV
+          echo "IMAGE_SEMVER=ghcr.io/aceakash/vocab:0.1.0" >> $GITHUB_ENV
+      - name: Build
+        run: docker build -t $IMAGE_SHA -t $IMAGE_SEMVER .
+      - name: Push
+        run: |
+          docker push $IMAGE_SHA
+          docker push $IMAGE_SEMVER
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    concurrency: vocab-deploy
+    steps:
+      - name: Generate site snippet
+        run: |
+          cat > vocab.caddy <<'EOF'
+          vocab.untilfalse.com {
+              encode zstd gzip
+              header {
+                  Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+                  X-Content-Type-Options "nosniff"
+                  X-Frame-Options "DENY"
+                  Referrer-Policy "strict-origin-when-cross-origin"
+                  Content-Security-Policy "default-src 'self';"
+              }
+              reverse_proxy vocab:8080
+              log {
+                  output file /var/log/caddy/vocab.access.log
+                  format json
+              }
+          }
+          EOF
+      - name: Upload site file
+        uses: appleboy/scp-action@v0.2.4
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          source: "vocab.caddy"
+          target: "/opt/caddy/sites/"
+      - name: Remote deploy
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/caddy
+            sudo mkdir -p sites
+            grep -q '/opt/caddy/sites/*.caddy' Caddyfile || echo 'import /opt/caddy/sites/*.caddy' | sudo tee -a Caddyfile
+            if ! grep -q '^vocab:' docker-compose.yml; then
+              sudo tee -a docker-compose.yml >/dev/null <<'YML'
+vocab:
+  image: ghcr.io/aceakash/vocab:0.1.0
+  container_name: vocab
+  restart: unless-stopped
+  networks:
+    - proxy
+  environment:
+    APP_LOG_LEVEL: info
+  labels:
+    com.centurylinklabs.watchtower.enable: "true"
+YML
+            fi
+            sudo docker compose pull vocab || true
+            sudo docker compose up -d vocab
+            sudo docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile || sudo docker compose restart caddy
+            for i in {1..6}; do
+              if curl -fsS https://vocab.untilfalse.com/healthz; then
+                echo "Health OK"
+                exit 0
+              fi
+              echo "Health check attempt $i failed; retrying..."
+              sleep 5
+            done
+            echo "Deployment failed: health endpoint not healthy"
+            exit 1
