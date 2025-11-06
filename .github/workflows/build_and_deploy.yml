@@ -57,7 +57,7 @@ jobs:
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
           source: "vocab.caddy"
-          target: "/opt/caddy/sites/"
+          target: "/tmp/"
       - name: Remote deploy
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -66,8 +66,9 @@ jobs:
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
             set -e
+            sudo mkdir -p /opt/caddy/sites
+            sudo mv /tmp/vocab.caddy /opt/caddy/sites/vocab.caddy
             cd /opt/caddy
-            sudo mkdir -p sites
             grep -q '/opt/caddy/sites/*.caddy' Caddyfile || echo 'import /opt/caddy/sites/*.caddy' | sudo tee -a Caddyfile
             if ! grep -q '^vocab:' docker-compose.yml; then
               sudo tee -a docker-compose.yml >/dev/null <<'YML'
