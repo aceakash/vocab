@@ -37,30 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     concurrency: vocab-deploy
     steps:
-      - name: Generate site snippet
-        run: |
-          cat <<'EOF' > vocab.caddy
-          vocab.untilfalse.com {
-              encode zstd gzip
-              header {
-                  Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
-                  X-Content-Type-Options "nosniff"
-                  X-Frame-Options "DENY"
-                  Referrer-Policy "strict-origin-when-cross-origin"
-                  Content-Security-Policy "default-src 'self';"
-              }
-              reverse_proxy vocab:8080
-          }
-          EOF
-      - name: Upload site file
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ secrets.DROPLET_HOST }}
-          username: ${{ secrets.DROPLET_USER }}
-          key: ${{ secrets.DROPLET_SSH_KEY }}
-          source: "vocab.caddy"
-          target: "/tmp/"
-      - name: Remote deploy
+      - name: Remote update vocab
         uses: appleboy/ssh-action@v1.0.0
         env:
           IMAGE_SEMVER: ${{ needs.build.outputs.image_semver }}
@@ -71,25 +48,10 @@ jobs:
           envs: IMAGE_SEMVER
           script: |
             set -e
-            sudo mkdir -p /opt/caddy/sites
-            sudo mv /tmp/vocab.caddy /opt/caddy/sites/vocab.caddy
             cd /opt/caddy
-            grep -q '/opt/caddy/sites/*.caddy' Caddyfile || echo 'import /opt/caddy/sites/*.caddy' | sudo tee -a Caddyfile
+            # Update image reference (optional; keeps semver current)
             if grep -q '^vocab:' docker-compose.yml; then
-              sudo sed -i.bak "s|^\([[:space:]]*image:\).*vocab:.*|  image: ${IMAGE_SEMVER}|" docker-compose.yml
-            else
-              sudo tee -a docker-compose.yml <<'YML'
-              vocab:
-                image: ${IMAGE_SEMVER}
-                container_name: vocab
-                restart: unless-stopped
-                networks:
-                  - proxy
-                environment:
-                  APP_LOG_LEVEL: info
-                labels:
-                  com.centurylinklabs.watchtower.enable: "true"
-              YML
+              sudo sed -i.bak "s|^\([[:space:]]*image:\).*vocab:.*|          image: ${IMAGE_SEMVER}|" docker-compose.yml
             fi
             sudo docker compose pull vocab || true
             sudo docker compose up -d vocab
@@ -99,8 +61,8 @@ jobs:
                 echo "Health OK"
                 exit 0
               fi
-              echo "Health check attempt $i failed; retrying..."
+              echo "Retry $i..."
               sleep 5
             done
-            echo "Deployment failed: health endpoint not healthy"
+            echo "Deployment failed"
             exit 1
