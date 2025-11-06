@@ -10,7 +10,6 @@ on:
 
 jobs:
   build:
-    name: Build image
     runs-on: ubuntu-latest
     outputs:
       image_sha: ${{ steps.tags.outputs.image_sha }}
@@ -34,7 +33,6 @@ jobs:
           docker push "$IMAGE_SEMVER"
 
   deploy:
-    name: Deploy to server
     needs: build
     runs-on: ubuntu-latest
     concurrency: vocab-deploy
@@ -70,6 +68,7 @@ jobs:
           host: ${{ secrets.DROPLET_HOST }}
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
+          envs: IMAGE_SEMVER
           script: |
             set -e
             sudo mkdir -p /opt/caddy/sites
@@ -79,18 +78,18 @@ jobs:
             if grep -q '^vocab:' docker-compose.yml; then
               sudo sed -i.bak "s|^\([[:space:]]*image:\).*vocab:.*|  image: ${IMAGE_SEMVER}|" docker-compose.yml
             else
-              sudo tee -a docker-compose.yml <<YML
-vocab:
-  image: ${IMAGE_SEMVER}
-  container_name: vocab
-  restart: unless-stopped
-  networks:
-    - proxy
-  environment:
-    APP_LOG_LEVEL: info
-  labels:
-    com.centurylinklabs.watchtower.enable: "true"
-YML
+              sudo tee -a docker-compose.yml <<'YML'
+              vocab:
+                image: ${IMAGE_SEMVER}
+                container_name: vocab
+                restart: unless-stopped
+                networks:
+                  - proxy
+                environment:
+                  APP_LOG_LEVEL: info
+                labels:
+                  com.centurylinklabs.watchtower.enable: "true"
+              YML
             fi
             sudo docker compose pull vocab || true
             sudo docker compose up -d vocab
