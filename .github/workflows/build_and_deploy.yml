@@ -71,17 +71,17 @@ jobs:
             grep -q '/opt/caddy/sites/*.caddy' Caddyfile || echo 'import /opt/caddy/sites/*.caddy' | sudo tee -a Caddyfile
             if ! grep -q '^vocab:' docker-compose.yml; then
               sudo tee -a docker-compose.yml >/dev/null <<'YML'
-vocab:
-  image: ghcr.io/aceakash/vocab:0.1.0
-  container_name: vocab
-  restart: unless-stopped
-  networks:
-    - proxy
-  environment:
-    APP_LOG_LEVEL: info
-  labels:
-    com.centurylinklabs.watchtower.enable: "true"
-YML
+              vocab:
+                image: ghcr.io/aceakash/vocab:0.1.0
+                container_name: vocab
+                restart: unless-stopped
+                networks:
+                  - proxy
+                environment:
+                  APP_LOG_LEVEL: info
+                labels:
+                  com.centurylinklabs.watchtower.enable: "true"
+              YML
             fi
             sudo docker compose pull vocab || true
             sudo docker compose up -d vocab
