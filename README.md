@@ -2,9 +2,18 @@
 
 Minimal Go web application exposing a health check endpoint.
 
-## Endpoints
+## Deploying
 
-- `GET /healthz` returns `200 OK`.
+Deployed on https://vocab.untilfalse.com
+
+### Deployment requirements
+
+Secrets created on Github for this repo:
+
+- DROPLET_HOST: Droplet IPv4.
+- DROPLET_USER: Droplet user
+- DROPLET_SSH_KEY: Private key (PEM). Public key must be uploaded to droplet.
+- GHCR_PAT: Github personal access token with read:packages.
 
 ## Running locally (no Docker)
 
