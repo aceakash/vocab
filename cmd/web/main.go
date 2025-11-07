@@ -9,7 +9,7 @@ import (
 
 func healthzHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("healthy, ok 2!"))
+	w.Write([]byte("healthy, ok!"))
 }
 
 func main() {
